@@ -1,0 +1,58 @@
+# Environment-agnostic definition of the app. This is identical no matter which
+# environment it lands in - nothing here mentions development/staging/production.
+# Per-environment differences live in envs/<env>/releasebinding.yaml, never here,
+# and never on a separate git branch.
+#
+# The ClusterComponentType (secured-web-service) and ClusterTrait
+# (horizontal-pod-autoscaler) this references are platform config installed once in
+# phase-3.md - they are NOT re-declared per app or per environment.
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: Component
+metadata:
+  name: greeter-gitops
+  namespace: default
+spec:
+  owner:
+    projectName: default
+  componentType:
+    kind: ClusterComponentType
+    name: deployment/secured-web-service
+  # autoDeploy false: releases are promoted explicitly through the per-environment
+  # ReleaseBindings in envs/, which is the whole point of the GitOps flow. With
+  # autoDeploy true the control plane would deploy on every Workload change on its
+  # own, bypassing the promotion gate.
+  autoDeploy: false
+  traits:
+    - kind: ClusterTrait
+      name: horizontal-pod-autoscaler
+      instanceName: autoscaler
+      parameters:
+        enabled: true
+        minReplicas: 1
+        maxReplicas: 3
+        targetCPUUtilizationPercentage: 80
+---
+apiVersion: openchoreo.dev/v1alpha1
+kind: Workload
+metadata:
+  name: greeter-gitops-workload
+  namespace: default
+spec:
+  owner:
+    projectName: default
+    componentName: greeter-gitops
+  endpoints:
+    http:
+      type: HTTP
+      port: 9090
+      visibility: ["external"]
+  container:
+    # The single build artifact that gets promoted through environments unchanged -
+    # OpenChoreo promotes the same immutable image dev -> staging -> production, it
+    # does not rebuild per environment. Bumping this is a platform/build concern, not
+    # a per-environment override.
+    image: "ghcr.io/openchoreo/samples/greeter-service:latest"
+    args:
+      - --port
+      - "9090"

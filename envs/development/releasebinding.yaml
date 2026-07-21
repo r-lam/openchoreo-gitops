@@ -1,0 +1,22 @@
+# The development environment's slice of config. This file - NOT a "development"
+# git branch - is what makes this environment distinct. Promotion to the next
+# environment is a file copy (see phase-4.md), never a branch merge.
+apiVersion: openchoreo.dev/v1alpha1
+kind: ReleaseBinding
+metadata:
+  name: greeter-gitops-development
+  namespace: default
+spec:
+  owner:
+    projectName: default
+    componentName: greeter-gitops
+  environment: development
+  componentTypeEnvironmentConfigs:
+    replicas: 1
+    resources:
+      requests:
+        cpu: "50m"
+        memory: "64Mi"
+      limits:
+        cpu: "100m"
+        memory: "128Mi"

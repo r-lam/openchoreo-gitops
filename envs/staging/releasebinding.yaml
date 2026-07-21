@@ -1,0 +1,21 @@
+# The staging environment's slice of config. Same file shape as development's,
+# different values - promoted here by copying, then adjusting only what differs.
+apiVersion: openchoreo.dev/v1alpha1
+kind: ReleaseBinding
+metadata:
+  name: greeter-gitops-staging
+  namespace: default
+spec:
+  owner:
+    projectName: default
+    componentName: greeter-gitops
+  environment: staging
+  componentTypeEnvironmentConfigs:
+    replicas: 2
+    resources:
+      requests:
+        cpu: "100m"
+        memory: "128Mi"
+      limits:
+        cpu: "250m"
+        memory: "256Mi"

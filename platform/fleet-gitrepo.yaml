@@ -1,0 +1,28 @@
+# Rancher Fleet is already installed on Cluster 1 (confirmed: fleet.cattle.io CRDs
+# present, cattle-fleet-system running). This GitRepo, applied once by a platform
+# engineer, is what turns the repo into a live GitOps source: Fleet watches main and
+# applies whatever is under the listed paths into the target cluster.
+#
+# fleet-local targets Cluster 1 itself (Rancher's local cluster = the OpenChoreo
+# control plane). That is deliberate: the OpenChoreo resources here (Component,
+# Workload, ReleaseBinding) are control-plane CRs. OpenChoreo then federates the
+# resulting workloads out to the EKS data plane on its own - Fleet does not deploy
+# to the data plane directly, and does not need a connection to it.
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: openchoreo-app-delivery
+  namespace: fleet-local
+spec:
+  repo: "https://github.com/<your-org>/<your-gitops-repo>.git"
+  branch: main
+  # One path per environment. Because environments are folders, not branches, Fleet
+  # syncs all of them from the same commit - no per-branch webhooks, no drift between
+  # what a branch claims and what is deployed.
+  paths:
+    - base
+    - envs/development
+    - envs/staging
+    - envs/production
+  targets:
+    - clusterName: local

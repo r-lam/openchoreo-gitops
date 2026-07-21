@@ -1,0 +1,22 @@
+# The production environment's slice of config. Production sizing; otherwise the
+# same file shape as development/staging. There is no "production" branch - this
+# folder on main IS production.
+apiVersion: openchoreo.dev/v1alpha1
+kind: ReleaseBinding
+metadata:
+  name: greeter-gitops-production
+  namespace: default
+spec:
+  owner:
+    projectName: default
+    componentName: greeter-gitops
+  environment: production
+  componentTypeEnvironmentConfigs:
+    replicas: 3
+    resources:
+      requests:
+        cpu: "250m"
+        memory: "256Mi"
+      limits:
+        cpu: "500m"
+        memory: "512Mi"
