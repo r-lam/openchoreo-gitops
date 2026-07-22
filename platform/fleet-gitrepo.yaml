@@ -1,28 +1,66 @@
-# Rancher Fleet is already installed on Cluster 1 (confirmed: fleet.cattle.io CRDs
-# present, cattle-fleet-system running). This GitRepo, applied once by a platform
-# engineer, is what turns the repo into a live GitOps source: Fleet watches main and
-# applies whatever is under the listed paths into the target cluster.
+# Fleet wiring for the GitOps repo — using a DEDICATED workspace, not the built-in
+# fleet-local. Applied once by a platform engineer (or, better, seeded by Terraform at
+# bootstrap — see phase-4.md "Day-0 vs manual"). Three objects, in order:
 #
-# fleet-local targets Cluster 1 itself (Rancher's local cluster = the OpenChoreo
-# control plane). That is deliberate: the OpenChoreo resources here (Component,
-# Workload, ReleaseBinding) are control-plane CRs. OpenChoreo then federates the
-# resulting workloads out to the EKS data plane on its own - Fleet does not deploy
-# to the data plane directly, and does not need a connection to it.
+#   1. platform-delivery         - our own Fleet workspace namespace (GitRepos live here)
+#   2. BundleNamespaceMapping     - lets bundles from platform-delivery target the
+#                                   `local` cluster, which stays in fleet-local
+#   3. GitRepo                    - the actual GitOps source, in platform-delivery
+#
+# WHY a mapping is needed: Fleet only evaluates a GitRepo's targets against Clusters in
+# the GitRepo's OWN namespace. Cluster 1 (`local`) is registered in fleet-local and is
+# meant to stay there. Rather than pollute fleet-local with our GitRepos (or move the
+# management cluster, which Rancher discourages), we keep GitRepos in platform-delivery
+# and use a BundleNamespaceMapping to reach the local cluster. Verified against live
+# Fleet: `kubectl explain bundlenamespacemapping` (bundleSelector + namespaceSelector),
+# and fleet-local carries the label kubernetes.io/metadata.name=fleet-local used below.
+#
+# NOTE: the GitRepo's namespace is NOT where resources deploy. Each manifest in the repo
+# carries its own metadata.namespace (openchoreo-control-plane, k3k-<name>, ...), and
+# that is where it lands on the target cluster. Workspace != deploy namespace.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: platform-delivery
+  labels:
+    # In Rancher this namespace is surfaced as a Fleet "workspace"; you may instead
+    # create a FleetWorkspace (management.cattle.io/v3) named platform-delivery, which
+    # backs itself with this same namespace and adds workspace-level RBAC.
+    openchoreo.dev/purpose: gitops-delivery
+---
+# Allows Bundles produced in platform-delivery to be deployed to clusters that live in
+# the fleet-local namespace (i.e. the `local` management cluster = Cluster 1).
+apiVersion: fleet.cattle.io/v1alpha1
+kind: BundleNamespaceMapping
+metadata:
+  name: platform-delivery-to-local
+  namespace: platform-delivery
+bundleSelector: {}                      # all bundles in this workspace
+namespaceSelector:
+  matchLabels:
+    kubernetes.io/metadata.name: fleet-local
+---
 apiVersion: fleet.cattle.io/v1alpha1
 kind: GitRepo
 metadata:
   name: openchoreo-app-delivery
-  namespace: fleet-local
+  namespace: platform-delivery          # <-- dedicated workspace, NOT fleet-local
 spec:
   repo: "https://github.com/<your-org>/<your-gitops-repo>.git"
   branch: main
-  # One path per environment. Because environments are folders, not branches, Fleet
-  # syncs all of them from the same commit - no per-branch webhooks, no drift between
-  # what a branch claims and what is deployed.
+  # One path per environment. Environments are folders, not branches, so Fleet syncs
+  # them all from the same commit.
   paths:
     - base
     - envs/development
     - envs/staging
     - envs/production
+  # Target the local cluster (Cluster 1 = OpenChoreo control plane). Reachable from
+  # this workspace only because of the BundleNamespaceMapping above. Selected by the
+  # `local` Fleet Cluster's own label rather than by clusterName, which is
+  # namespace-scoped.
   targets:
-    - clusterName: local
+    - clusterSelector:
+        matchLabels:
+          name: local
