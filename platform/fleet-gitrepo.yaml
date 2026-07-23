@@ -47,15 +47,17 @@ metadata:
   name: openchoreo-app-delivery
   namespace: platform-delivery          # <-- dedicated workspace, NOT fleet-local
 spec:
-  repo: "https://github.com/<your-org>/<your-gitops-repo>.git"
+  repo: "https://github.com/r-lam/openchoreo-gitops.git"
   branch: main
   # One path per environment. Environments are folders, not branches, so Fleet syncs
-  # them all from the same commit.
+  # them all from the same commit. `clusters/` delivers K3k self-service sandboxes
+  # (k3k.io Cluster CRs) the same way - a sandbox request is a folder/PR.
   paths:
     - base
     - envs/development
     - envs/staging
     - envs/production
+    - clusters
   # Target the local cluster (Cluster 1 = OpenChoreo control plane). Reachable from
   # this workspace only because of the BundleNamespaceMapping above. Selected by the
   # `local` Fleet Cluster's own label rather than by clusterName, which is

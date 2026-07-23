@@ -18,11 +18,13 @@ spec:
   componentType:
     kind: ClusterComponentType
     name: deployment/secured-web-service
-  # autoDeploy false: releases are promoted explicitly through the per-environment
-  # ReleaseBindings in envs/, which is the whole point of the GitOps flow. With
-  # autoDeploy true the control plane would deploy on every Workload change on its
-  # own, bypassing the promotion gate.
-  autoDeploy: false
+  # autoDeploy true: OpenChoreo auto-creates a ComponentRelease from the Workload and the
+  # per-environment ReleaseBindings bind it, so the app actually deploys when Fleet delivers
+  # this. (With autoDeploy false the ReleaseBindings have no ComponentRelease to bind -
+  # "ComponentRelease not found" - and nothing deploys until a build pipeline produces a
+  # release and each env's ReleaseBinding sets spec.releaseName to it. That fuller
+  # promotion-gate flow needs the workflow plane / builds; see LIVE-RUNBOOK.md.)
+  autoDeploy: true
   traits:
     - kind: ClusterTrait
       name: horizontal-pod-autoscaler

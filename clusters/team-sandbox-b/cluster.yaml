@@ -1,0 +1,29 @@
+# Self-service K3k virtual cluster, delivered by GitOps. Adding this folder (a PR) is how a
+# team requests a sandbox; Fleet applies it to Cluster 1 (where the K3k controller runs) and
+# K3k provisions an isolated K3s control plane. Deleting the folder tears it down.
+#
+# shared mode = lightweight: one K3s server pod is the virtual control plane; tenant workloads
+# schedule onto the host via a K3k virtual-kubelet. etcd PVC uses Cluster 1's default SC
+# (longhorn on Skytap). Verified live: team-sandbox-a with this exact shape reached phase Ready.
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: k3k-team-sandbox-b
+---
+apiVersion: k3k.io/v1beta1
+kind: Cluster
+metadata:
+  name: team-sandbox-b
+  namespace: k3k-team-sandbox-b
+spec:
+  mode: shared
+  servers: 1
+  # version omitted -> inherits the host Kubernetes version (v1.35.5).
+  persistence:
+    type: dynamic
+    storageClassName: longhorn
+    storageRequestSize: 2G
+  serverLimit:
+    cpu: "500m"
+    memory: 1Gi
